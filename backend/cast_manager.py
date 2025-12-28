@@ -51,5 +51,43 @@ class CastManager:
     def get_device(self, device_id: str) -> Optional[pychromecast.Chromecast]:
         return self.casts.get(device_id)
 
+    def play_media(self, device_id: str, media_url: str, content_type: str = "audio/mpeg"):
+        cast = self.get_device(device_id)
+        if cast:
+            try:
+                cast.wait()
+                mc = cast.media_controller
+                mc.play_media(media_url, content_type)
+                mc.block_until_active()
+                logger.info(f"Started casting to {cast.name}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to play media on {cast.name}: {e}")
+        return False
+
+    def stop_media(self, device_id: str):
+        cast = self.get_device(device_id)
+        if cast:
+            try:
+                cast.wait()
+                cast.media_controller.stop()
+                logger.info(f"Stopped casting on {cast.name}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to stop media on {cast.name}: {e}")
+        return False
+
+    def set_volume(self, device_id: str, volume: float):
+        cast = self.get_device(device_id)
+        if cast:
+            try:
+                cast.wait()
+                cast.set_volume(volume)
+                logger.info(f"Set volume on {cast.name} to {volume}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to set volume on {cast.name}: {e}")
+        return False
+
 # Global instance
 cast_manager = CastManager()

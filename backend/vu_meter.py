@@ -2,8 +2,8 @@ import asyncio
 import subprocess
 import shlex
 import logging
-import audioop
 import math
+import struct
 from typing import Set
 from fastapi import WebSocket
 
@@ -16,6 +16,20 @@ class VUMeter:
         self.is_running = False
         self._task = None
 
+    def calculate_rms(self, data):
+        """Calculate RMS for S16_LE PCM data manually."""
+        # Each sample is 2 bytes
+        count = len(data) // 2
+        if count == 0:
+            return 0
+        # Unpack Little Endian Signed Short
+        try:
+            samples = struct.unpack(f"<{count}h", data)
+            sum_sq = sum(float(s) * s for s in samples)
+            return math.sqrt(sum_sq / count)
+        except Exception:
+            return 0
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.add(websocket)
@@ -23,18 +37,15 @@ class VUMeter:
             await self.start()
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-        if not self.active_connections:
-            # Optional: Stop to save CPU if no one watching
-            # await self.stop()
-            pass
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
 
     async def start(self):
         if self.is_running:
             return
 
         logger.info("Starting VUMeter capture...")
-        # Capture mono 16-bit 8000Hz PCM - lightweight
+        # Capture 8000Hz Stereo PCM
         cmd = "arecord -D plug:dsnoop:1 -f S16_LE -r 8000 -c 2 -t raw"
         
         try:
@@ -64,9 +75,7 @@ class VUMeter:
 
     async def _meter_loop(self):
         loop = asyncio.get_event_loop()
-        # 8000Hz * 2 bytes * 2 channels = 32000 bytes/sec
-        # We want updates ~30fps = ~33ms
-        # 32000 * 0.033 ~= 1024 bytes (power of 2 is nice)
+        # 30fps update
         chunk_size = 1024 
         
         while self.is_running and self.process:
@@ -75,37 +84,22 @@ class VUMeter:
             if not data:
                 break
 
-            # Calculate RMS for Left and Right channels
+            if not self.active_connections:
+                await asyncio.sleep(0.1)
+                continue
+
             try:
-                # audioop.rms calculates root mean square
-                # But data is interleaved L R L R
-                # We need to de-interleave to get L and R separately
-                # Or just send average mono for MVP visual
+                rms_stereo = self.calculate_rms(data)
                 
-                # De-interleaving in Python might be slow.
-                # Let's try simple stereo RMS first.
+                # Max value for 16-bit is 32768
+                db = 20 * math.log10(rms_stereo / 32768.0) if rms_stereo > 0 else -96.0
                 
-                # S16_LE = 2 bytes width
-                rms_stereo = audioop.rms(data, 2)
-                
-                # Convert to dB? Or just raw 0-32768
-                # dB = 20 * log10(rms / 32768)
-                # Avoid log(0)
-                db = 20 * math.log10(rms_stereo / 32768) if rms_stereo > 0 else -96.0
-                
-                # Send to clients
-                # Format: {"l": 0-100, "r": 0-100, "db": -20}
-                # Since we have mono RMS effectively here (audioop treats stream as one), 
-                # we'll send same to L/R for now unless we separate.
-                
-                # To separate L/R in python efficiently without numpy:
-                # Iterate? Too slow.
-                # Let's just stick to "Stereo Average" for the UI bars for now to keep it lightweight.
-                
-                # Map dB to percentage 0-100 for UI
-                # Noise floor ~ -60dB, Max 0dB
+                # Map dB to percentage 0-100
                 percentage = max(0, min(100, (db + 60) / 60 * 100))
                 
+                # Log occasionally to debug
+                # logger.info(f"RMS: {rms_stereo:.2f}, dB: {db:.2f}, %: {percentage:.2f}")
+
                 message = {
                     "l": percentage,
                     "r": percentage,
@@ -114,10 +108,13 @@ class VUMeter:
                 
                 # Broadcast
                 for connection in list(self.active_connections):
-                    await connection.send_json(message)
+                    try:
+                        await connection.send_json(message)
+                    except Exception:
+                        self.active_connections.remove(connection)
                     
             except Exception as e:
-                # logger.error(f"Meter error: {e}")
+                # logger.error(f"Meter loop error: {e}")
                 pass
 
 # Global instance

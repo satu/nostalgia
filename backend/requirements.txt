@@ -4,3 +4,7 @@ pychromecast
 zeroconf
 python-multipart
 websockets
+pytest
+pytest-asyncio
+httpx
+coverage
