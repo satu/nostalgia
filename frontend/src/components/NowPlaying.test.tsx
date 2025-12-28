@@ -9,13 +9,7 @@ vi.mock('../api', () => ({
 }));
 
 describe('NowPlaying', () => {
-  it('renders phono source info', () => {
-    render(<NowPlaying />);
-    expect(screen.getByText('Phono')).toBeInTheDocument();
-    expect(screen.getByText('Source Input')).toBeInTheDocument();
-  });
-
-  it('shows silent initially', () => {
+  it('renders signal status', () => {
     render(<NowPlaying />);
     expect(screen.getByText('Silent')).toBeInTheDocument();
   });

@@ -75,13 +75,12 @@ export const NowPlaying: React.FC = () => {
         {/* Image */}
         <div 
           className="w-full h-48 bg-center bg-no-repeat bg-cover relative group" 
-          style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDgDAuf_R_jhvp8YD8egR-kPcqKZ3-tO8ZrSwzAX5Xezh0UZBQRucgmCbGQ6NwPq3mD-o5hoZRB19dXGVtI3Fser28VD1dTxb8oWUP2XZmfOdeT9kWp3xd0ngW9L_RSmByYyHO6GdRUWuNE3_hjme4Ani4aXYicGwp8HcDkxU7ymG_-hECsfb02U-i_Wu27vFZVZN-uG1WfKxZGN1qpU4FZLL9xKSwwZk8U4u-d7qvU5yQRqkGJGphmZFGnjp9kgyHNou2fvy6ELQg")' }}
+          style={{ backgroundImage: 'url("/banner.jpg")' }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-surface-dark/90 to-transparent"></div>
           <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
             <div>
-              <p className="text-primary text-xs font-bold uppercase tracking-wider mb-1">Source Input</p>
-              <h3 className="text-white text-2xl font-bold leading-tight">Phono</h3>
+              {/* Removed Phono label as requested */}
             </div>
             <div className={`flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border transition-colors duration-300 ${isSignalActive ? 'border-primary/50' : 'border-white/10'}`}>
               <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isSignalActive ? 'bg-primary animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-slate-500'}`}></div>
