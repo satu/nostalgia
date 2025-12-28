@@ -1,14 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
-import subprocess
-import shlex
 import logging
 import socket
 
 from cast_manager import cast_manager
+from broadcaster import broadcaster
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -16,10 +15,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start Cast Discovery
+    # Startup: Start Cast Discovery and ensure broadcaster state
     cast_manager.start_discovery()
+    # We could auto-start broadcaster here if we wanted always-on recording
+    # await broadcaster.start() 
     yield
-    # Shutdown logic if needed
+    # Shutdown logic
+    await broadcaster.stop()
 
 app = FastAPI(title="Nostalgia API", lifespan=lifespan)
 
@@ -89,34 +91,8 @@ async def set_volume(req: VolumeRequest):
     raise HTTPException(status_code=404, detail="Device not found or failed to set volume")
 
 @app.get("/stream.mp3")
-async def stream_audio():
-    # ffmpeg command to capture from ALSA and encode to MP3
-    # -f alsa: input format
-    # -i hw:1,0: input device (Card 1, Device 0 - Sonos Adapter)
-    # -acodec libmp3lame: audio codec
-    # -ab 192k: bitrate
-    # -f mp3: output format
-    # pipe:1: output to stdout
-    cmd = "ffmpeg -f alsa -i hw:1,0 -acodec libmp3lame -ab 192k -f mp3 pipe:1"
-    
-    # Run ffmpeg as a subprocess
-    process = subprocess.Popen(
-        shlex.split(cmd),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL 
-    )
-
-    def iterfile():
-        try:
-            while True:
-                data = process.stdout.read(4096)
-                if not data:
-                    break
-                yield data
-        finally:
-            process.terminate()
-
-    return StreamingResponse(iterfile(), media_type="audio/mpeg")
+async def stream_audio(request: Request):
+    return StreamingResponse(broadcaster.stream_generator(request), media_type="audio/mpeg")
 
 if __name__ == "__main__":
     import uvicorn
