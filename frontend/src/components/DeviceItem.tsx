@@ -1,5 +1,5 @@
 import React from 'react';
-import { Device } from '../types';
+import type { Device } from '../types';
 
 interface DeviceItemProps {
   device: Device;

@@ -5,6 +5,16 @@ import type { Device } from './types';
 // Since we run Vite locally and backend on Pi, we need the Pi's IP.
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+export const getWebSocketUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  if (API_BASE_URL.startsWith('http')) {
+    // If it's an absolute URL (dev mode), replace http/https with ws/wss
+    return API_BASE_URL.replace(/^http/, 'ws').replace(/\/api$/, '/ws');
+  }
+  // Relative path (production)
+  return `${protocol}//${window.location.host}/ws`;
+};
+
 export const api = {
   getDevices: async (): Promise<Device[]> => {
     const response = await fetch(`${API_BASE_URL}/devices`);

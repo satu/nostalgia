@@ -3,7 +3,7 @@ import { Header } from './components/Header'
 import { NowPlaying } from './components/NowPlaying'
 import { DeviceList } from './components/DeviceList'
 import { StopButton } from './components/StopButton'
-import { Device } from './types'
+import type { Device } from './types'
 import { api } from './api'
 
 function App() {
