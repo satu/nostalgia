@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pychromecast
+zeroconf
+python-multipart
+websockets

@@ -1,0 +1,12 @@
+[Unit]
+Description=Nostalgia Backend Service
+After=network.target
+
+[Service]
+User=dariofreni
+WorkingDirectory=/home/dariofreni/nostalgia/backend
+ExecStart=/home/dariofreni/nostalgia/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
