@@ -3,105 +3,141 @@ import subprocess
 import shlex
 import logging
 from typing import Set
+from vu_meter import vu_meter
 
 logger = logging.getLogger(__name__)
 
 class AudioBroadcaster:
     def __init__(self):
         self.clients: Set[asyncio.Queue] = set()
-        self.process = None
+        self.capture_process = None
+        self.encode_process = None
         self.is_running = False
-        self._task = None
+        self._processing_task = None
+        self._broadcast_task = None
 
     async def start(self):
         if self.is_running:
             return
 
-        logger.info("Starting AudioBroadcaster...")
-        # Use plug:dsnoop:1 to allow shared capture with VU meter
-        cmd = "ffmpeg -f alsa -i plug:dsnoop:1 -acodec libmp3lame -ab 192k -f mp3 pipe:1"
+        logger.info("Starting AudioBroadcaster Pipeline...")
         
+        # 1. Capture Process: ALSA -> PCM (S16LE, 44.1kHz, Stereo)
+        # Using ffmpeg for capture as it handles format conversion reliably
+        capture_cmd = "ffmpeg -f alsa -i plug:dsnoop:1 -ac 2 -ar 44100 -f s16le pipe:1"
+        
+        # 2. Encode Process: PCM -> MP3
+        # Read from pipe:0 (stdin)
+        encode_cmd = "ffmpeg -f s16le -ar 44100 -ac 2 -i pipe:0 -acodec libmp3lame -ab 192k -f mp3 pipe:1"
+
         try:
-            self.process = subprocess.Popen(
-                shlex.split(cmd),
+            self.capture_process = subprocess.Popen(
+                shlex.split(capture_cmd),
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE # Capture stderr for debugging
+                stderr=subprocess.DEVNULL
             )
+            
+            self.encode_process = subprocess.Popen(
+                shlex.split(encode_cmd),
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL
+            )
+            
             self.is_running = True
-            self._task = asyncio.create_task(self._broadcast_loop())
+            self._processing_task = asyncio.create_task(self._pipeline_loop())
+            self._broadcast_task = asyncio.create_task(self._broadcast_loop())
+            
         except Exception as e:
-            logger.error(f"Failed to start FFmpeg: {e}")
-            self.is_running = False
+            logger.error(f"Failed to start pipeline: {e}")
+            await self.stop()
 
     async def stop(self):
         self.is_running = False
-        if self.process:
-            self.process.terminate()
-            self.process = None
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
+        
+        if self.capture_process:
+            self.capture_process.terminate()
+            self.capture_process = None
+            
+        if self.encode_process:
+            self.encode_process.terminate()
+            self.encode_process = None
+            
+        if self._processing_task:
+            self._processing_task.cancel()
+            try: await self._processing_task
+            except: pass
+            
+        if self._broadcast_task:
+            self._broadcast_task.cancel()
+            try: await self._broadcast_task
+            except: pass
+            
         logger.info("AudioBroadcaster stopped.")
 
-    async def _broadcast_loop(self):
+    async def _pipeline_loop(self):
+        """Reads PCM, updates VU Meter, writes to Encoder."""
         loop = asyncio.get_event_loop()
-        buffer_size = 4096
+        chunk_size = 4096 # ~23ms of audio at 44.1kHz
         
-        while self.is_running and self.process:
-            # Run blocking read in executor
-            data = await loop.run_in_executor(None, self.process.stdout.read, buffer_size)
-            
-            if not data:
-                # Check for errors
-                return_code = self.process.poll()
-                if return_code is not None:
-                    stderr = await loop.run_in_executor(None, self.process.stderr.read)
-                    if stderr:
-                        logger.error(f"FFmpeg error: {stderr.decode('utf-8', errors='ignore')}")
+        while self.is_running and self.capture_process and self.encode_process:
+            try:
+                # Read PCM from capture
+                pcm_data = await loop.run_in_executor(None, self.capture_process.stdout.read, chunk_size)
+                
+                if not pcm_data:
                     break
-                continue
-
-            # Broadcast to all connected clients
-            # Iterate over a copy because clients might disconnect during iteration
-            for queue in list(self.clients):
+                
+                # Update VU Meter
+                await vu_meter.process_pcm(pcm_data)
+                
+                # Write to Encoder
                 try:
-                    # Put data in queue, non-blocking if possible or with timeout
-                    # If queue is full, we might drop frames or block. 
-                    # For audio streaming, dropping is better than lagging infinitely.
+                    await loop.run_in_executor(None, self.encode_process.stdin.write, pcm_data)
+                    await loop.run_in_executor(None, self.encode_process.stdin.flush)
+                except (BrokenPipeError, OSError):
+                    break
+                
+            except Exception as e:
+                logger.error(f"Pipeline error: {e}")
+                break
+
+    async def _broadcast_loop(self):
+        """Reads MP3 from Encoder, broadcasts to clients."""
+        loop = asyncio.get_event_loop()
+        chunk_size = 4096
+        
+        while self.is_running and self.encode_process:
+            try:
+                mp3_data = await loop.run_in_executor(None, self.encode_process.stdout.read, chunk_size)
+                
+                if not mp3_data:
+                    break
+
+                # Broadcast
+                for queue in list(self.clients):
                     if not queue.full():
-                        queue.put_nowait(data)
-                except Exception as e:
-                    logger.warning(f"Error sending to client: {e}")
+                        queue.put_nowait(mp3_data)
+                        
+            except Exception as e:
+                logger.error(f"Broadcast error: {e}")
+                break
 
     async def stream_generator(self, request):
-        queue = asyncio.Queue(maxsize=100) # Buffer of ~400KB
+        queue = asyncio.Queue(maxsize=100)
         self.clients.add(queue)
         
-        # Ensure broadcaster is running
         if not self.is_running:
             await self.start()
 
         try:
             while True:
-                # Wait for data
                 data = await queue.get()
                 yield data
-                
-                # Detect client disconnect via request state (FastAPI specific)
                 if await request.is_disconnected():
                     break
-        except Exception as e:
-             # logger.debug(f"Client disconnected: {e}")
-             pass
         finally:
             self.clients.remove(queue)
-            # Optional: Stop broadcaster if no clients left? 
-            # For now, keep it running to keep device "hot" and ready, or to avoid startup lag.
-            if not self.clients:
-                 logger.info("No more clients, keeping stream alive for now...")
 
 # Global instance
 broadcaster = AudioBroadcaster()

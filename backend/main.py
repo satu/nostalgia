@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup: Start Cast Discovery and ensure broadcaster state
     cast_manager.start_discovery()
-    # We could auto-start broadcaster here if we wanted always-on recording
-    # await broadcaster.start() 
+    # Auto-start broadcaster for always-on recording (VU Meter)
+    await broadcaster.start() 
     
-    # Start VU Meter
+    # Start VU Meter (Passive)
     await vu_meter.start()
     
     yield

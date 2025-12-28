@@ -47,9 +47,11 @@ async def test_audio_broadcaster_start_stop(mock_popen):
     
     await bc.start()
     assert bc.is_running == True
-    assert bc.process == mock_process
+    assert bc.capture_process == mock_process
+    assert bc.encode_process == mock_process
     
     await bc.stop()
     assert bc.is_running == False
-    assert bc.process == None
-    mock_process.terminate.assert_called_once()
+    assert bc.capture_process == None
+    assert bc.encode_process == None
+    assert mock_process.terminate.call_count == 2

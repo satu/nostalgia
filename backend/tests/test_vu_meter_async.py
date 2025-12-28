@@ -4,20 +4,14 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from vu_meter import VUMeter
 
 @pytest.mark.asyncio
-@patch('vu_meter.subprocess.Popen')
-async def test_vu_meter_start_stop(mock_popen):
+async def test_vu_meter_start_stop():
     meter = VUMeter()
-    mock_process = MagicMock()
-    mock_popen.return_value = mock_process
     
     await meter.start()
     assert meter.is_running == True
-    assert meter.process == mock_process
     
     await meter.stop()
     assert meter.is_running == False
-    assert meter.process == None
-    mock_process.terminate.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_vu_meter_connections():
