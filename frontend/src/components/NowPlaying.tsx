@@ -74,7 +74,7 @@ export const NowPlaying: React.FC = () => {
       <div className="flex flex-col items-stretch justify-start rounded-xl overflow-hidden shadow-lg bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-800">
         {/* Image */}
         <div 
-          className="w-full h-48 bg-center bg-no-repeat bg-cover relative group" 
+          className="w-full h-48 bg-bottom bg-no-repeat bg-cover relative group" 
           style={{ backgroundImage: 'url("/banner.jpg")' }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-surface-dark/90 to-transparent"></div>
