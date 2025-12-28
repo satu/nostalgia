@@ -4,16 +4,15 @@ import { vi } from 'vitest';
 // Mock WebSocket
 class MockWebSocket {
   onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
   onmessage: ((event: any) => void) | null = null;
-  onerror: (() => void) | null = null;
-  readyState = 1;
+  onclose: (() => void) | null = null;
 
-  constructor(url: string) {
-    setTimeout(() => this.onopen?.(), 0);
+  constructor(_url: string) {
+    setTimeout(() => this.onopen?.(), 10);
   }
 
-  send(data: string) {}
+  send(_data: string) {}
+
   close() {
     this.onclose?.();
   }

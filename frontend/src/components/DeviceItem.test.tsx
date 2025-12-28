@@ -7,7 +7,7 @@ describe('DeviceItem', () => {
     id: '1',
     name: 'Test Device',
     model: 'Model X',
-    type: 'audio',
+    type: 'audio' as const,
     volume: 0.5,
     is_active: false
   };
@@ -20,7 +20,7 @@ describe('DeviceItem', () => {
   });
 
   it('renders group info when idle', () => {
-    const groupDevice = { ...mockDevice, type: 'group' };
+    const groupDevice = { ...mockDevice, type: 'group' as const };
     render(<DeviceItem device={groupDevice} onToggle={() => {}} onVolumeChange={() => {}} />);
     expect(screen.getByText(/Group • Model X/i)).toBeInTheDocument();
   });
