@@ -1,9 +1,9 @@
-import { Device } from './types';
+import type { Device } from './types';
 
 // Detect if we are in development mode to point to the Pi or localhost
 // For now, hardcode the Pi's IP or relative path if served from same origin.
 // Since we run Vite locally and backend on Pi, we need the Pi's IP.
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://nostalgia:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const api = {
   getDevices: async (): Promise<Device[]> => {
