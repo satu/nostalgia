@@ -37,7 +37,7 @@ class CastManager:
                 # For now just return basic info
                 device_list.append({
                     "id": str(cc.uuid),
-                    "name": cc.device.friendly_name,
+                    "name": cc.name,
                     "model": cc.model_name,
                     "type": cc.cast_type,
                     "volume": volume,
