@@ -21,6 +21,12 @@ def test_discovery_callback(mock_get, mock_discover, manager):
     mock_cast.status = MagicMock()
     mock_cast.status.volume_level = 0.5
     
+    # Mock media status
+    mock_mc_status = MagicMock()
+    mock_mc_status.content_id = "http://server/stream.mp3"
+    mock_mc_status.player_state = "PLAYING"
+    mock_cast.media_controller.status = mock_mc_status
+
     # Simulate discovery callback
     manager._on_cast_discovered(mock_cast)
     
@@ -29,6 +35,7 @@ def test_discovery_callback(mock_get, mock_discover, manager):
     assert devices[0]["id"] == "uuid-1"
     assert devices[0]["name"] == "Test Cast"
     assert devices[0]["volume"] == 0.5
+    assert devices[0]["is_active"] == True
 
 def test_play_media_success(manager):
     mock_cast = MagicMock()

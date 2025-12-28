@@ -29,19 +29,25 @@ class CastManager:
         for uuid, cc in self.casts.items():
             # Basic status check
             try:
-                status = cc.status
-                volume = cc.status.volume_level if cc.status else 0
-                is_active = False # You might determine this if it's playing OUR stream
+                # Check media status to determine if it's playing our stream
+                mc_status = cc.media_controller.status
+                is_active = False
                 
-                # Check if it's playing our app or stream? 
-                # For now just return basic info
+                if mc_status and mc_status.content_id:
+                    # check if playing our stream and in active state
+                    if mc_status.content_id.endswith("/stream.mp3") and \
+                       mc_status.player_state in ["PLAYING", "BUFFERING"]:
+                        is_active = True
+
+                volume = cc.status.volume_level if cc.status else 0
+                
                 device_list.append({
                     "id": str(cc.uuid),
                     "name": cc.name,
                     "model": cc.model_name,
                     "type": cc.cast_type,
                     "volume": volume,
-                    "is_active": is_active # Placeholder
+                    "is_active": is_active
                 })
             except Exception as e:
                 logger.error(f"Error reading status for {cc.name}: {e}")
