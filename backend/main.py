@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
@@ -8,6 +8,7 @@ import socket
 
 from cast_manager import cast_manager
 from broadcaster import broadcaster
+from vu_meter import vu_meter
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -19,9 +20,14 @@ async def lifespan(app: FastAPI):
     cast_manager.start_discovery()
     # We could auto-start broadcaster here if we wanted always-on recording
     # await broadcaster.start() 
+    
+    # Start VU Meter
+    await vu_meter.start()
+    
     yield
     # Shutdown logic
     await broadcaster.stop()
+    await vu_meter.stop()
 
 app = FastAPI(title="Nostalgia API", lifespan=lifespan)
 
@@ -93,6 +99,16 @@ async def set_volume(req: VolumeRequest):
 @app.get("/stream.mp3")
 async def stream_audio(request: Request):
     return StreamingResponse(broadcaster.stream_generator(request), media_type="audio/mpeg")
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await vu_meter.connect(websocket)
+    try:
+        while True:
+            # Keep connection open, wait for client close
+            await websocket.receive_text()
+    except Exception:
+        vu_meter.disconnect(websocket)
 
 if __name__ == "__main__":
     import uvicorn

@@ -18,8 +18,8 @@ class AudioBroadcaster:
             return
 
         logger.info("Starting AudioBroadcaster...")
-        # Use plughw:1,0 for better compatibility if hw:1,0 is picky
-        cmd = "ffmpeg -f alsa -i hw:1,0 -acodec libmp3lame -ab 192k -f mp3 pipe:1"
+        # Use plug:dsnoop:1 to allow shared capture with VU meter
+        cmd = "ffmpeg -f alsa -i plug:dsnoop:1 -acodec libmp3lame -ab 192k -f mp3 pipe:1"
         
         try:
             self.process = subprocess.Popen(
