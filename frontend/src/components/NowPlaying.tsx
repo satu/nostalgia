@@ -75,7 +75,7 @@ export const NowPlaying: React.FC = () => {
         {/* Image */}
         <div 
           className="w-full h-48 bg-no-repeat bg-cover relative group" 
-          style={{ backgroundImage: 'url("/banner.jpg")', backgroundPosition: 'center 60%' }}
+          style={{ backgroundImage: 'url("/banner.jpg")', backgroundPosition: 'center 40%' }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-surface-dark/90 to-transparent"></div>
           <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">

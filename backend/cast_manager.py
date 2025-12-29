@@ -35,9 +35,14 @@ class CastManager:
                 
                 if mc_status and mc_status.content_id:
                     # check if playing our stream and in active state
-                    if mc_status.content_id.endswith("/stream.mp3") and \
-                       mc_status.player_state in ["PLAYING", "BUFFERING"]:
+                    # We accept IDLE/BUFFERING/PLAYING/PAUSED as long as the content matches
+                    # This prevents UI flickering during loading (IDLE state)
+                    if mc_status.content_id.endswith("/stream.mp3"):
                         is_active = True
+                    
+                    # Debug logging for active transitions or specific devices
+                    if cc.name == "Sea room display" or is_active:
+                        logger.info(f"Device {cc.name}: State={mc_status.player_state}, Content={mc_status.content_id}, Active={is_active}")
 
                 volume = cc.status.volume_level if cc.status else 0
                 
