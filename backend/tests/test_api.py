@@ -34,6 +34,10 @@ def test_start_cast(mock_cm):
     response = client.post("/api/cast/start", json={"device_id": "1"})
     assert response.status_code == 200
     assert response.json()["status"] == "started"
+    # Verify title and thumb are passed
+    args, kwargs = mock_cm.play_media.call_args
+    assert kwargs["title"] == "Nostalgia"
+    assert "banner.jpg" in kwargs["thumb"]
 
 @patch('main.cast_manager')
 def test_start_cast_fail(mock_cm):

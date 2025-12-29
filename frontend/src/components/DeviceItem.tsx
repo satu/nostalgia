@@ -3,13 +3,18 @@ import type { Device } from '../types';
 
 interface DeviceItemProps {
   device: Device;
+  allDevices: Device[];
   onToggle: (id: string, active: boolean) => void;
   onVolumeChange: (id: string, volume: number) => void;
 }
 
-const DeviceItem: React.FC<DeviceItemProps> = ({ device, onToggle, onVolumeChange }) => {
+const DeviceItem: React.FC<DeviceItemProps> = ({ device, allDevices, onToggle, onVolumeChange }) => {
   const isGroup = device.type === 'group';
   const icon = isGroup ? 'speaker_group' : (device.type === 'audio' ? 'speaker' : 'tv'); // basic mapping
+
+  const memberDevices = device.members 
+    ? device.members.map(mid => allDevices.find(d => d.id === mid)).filter(Boolean) as Device[]
+    : [];
 
   // Optimistic UI state to prevent flickering
   const [pendingActive, setPendingActive] = useState<boolean | null>(null);
@@ -19,11 +24,16 @@ const DeviceItem: React.FC<DeviceItemProps> = ({ device, onToggle, onVolumeChang
   useEffect(() => {
     if (pendingActive !== null && device.is_active === pendingActive) {
       // Backend confirmed our state
-      setPendingActive(null);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      // Add a grace period to prevent flickering if the state is unstable (e.g. disconnects)
+      const confirmTimeout = setTimeout(() => {
+        setPendingActive(null);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      }, 5000);
+      
+      return () => clearTimeout(confirmTimeout);
     }
   }, [device.is_active, pendingActive]);
 
@@ -90,6 +100,41 @@ const DeviceItem: React.FC<DeviceItemProps> = ({ device, onToggle, onVolumeChang
             ></div>
           </div>
           <span className="material-symbols-outlined text-slate-400 text-[20px]">volume_up</span>
+        </div>
+      )}
+
+      {/* Member Volumes for Active Group */}
+      {displayActive && isGroup && memberDevices.length > 0 && (
+        <div className="flex flex-col gap-4 mt-2 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in duration-500">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Group Members</p>
+          {memberDevices.map(member => (
+            <div key={member.id} className="flex flex-col gap-2 pl-2 border-l-2 border-primary/20">
+               <div className="flex justify-between items-center px-1">
+                  <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{member.name}</span>
+                  <span className="text-xs text-slate-400">{Math.round(member.volume * 100)}%</span>
+               </div>
+               <div className="flex items-center gap-3">
+                  <div className="relative w-full h-4 flex items-center">
+                    <div className="absolute w-full h-1 bg-slate-100 dark:bg-[#1e2a22] rounded-full"></div>
+                    <div className="absolute h-1 bg-primary/60 rounded-full" style={{ width: `${member.volume * 100}%` }}></div>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="1" 
+                      step="0.01"
+                      value={member.volume} 
+                      onChange={(e) => onVolumeChange(member.id, parseFloat(e.target.value))}
+                      className="absolute w-full opacity-0 cursor-pointer h-4 z-10" 
+                    />
+                    {/* Custom Thumb Representation */}
+                    <div 
+                      className="absolute h-3 w-3 bg-white rounded-full shadow-sm pointer-events-none transition-all duration-75" 
+                      style={{ left: `${member.volume * 100}%`, transform: 'translateX(-50%)' }}
+                    ></div>
+                  </div>
+               </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 import App from './App';
 import { api } from './api';
@@ -50,7 +50,9 @@ describe('App Component', () => {
     render(<App />);
     
     const checkbox = await screen.findByRole('checkbox');
-    fireEvent.click(checkbox);
+    await act(async () => {
+      fireEvent.click(checkbox);
+    });
     
     expect(api.startCast).toHaveBeenCalledWith('1');
   });
@@ -63,10 +65,11 @@ describe('App Component', () => {
     render(<App />);
     
     const checkbox = await screen.findByRole('checkbox');
-    fireEvent.click(checkbox);
+    await act(async () => {
+      fireEvent.click(checkbox);
+    });
     
     await waitFor(() => {
-      // Should revert to unchecked (not verified here directly but we ensure code runs)
        expect(api.startCast).toHaveBeenCalledWith('1');
     });
   });
@@ -79,7 +82,9 @@ describe('App Component', () => {
     render(<App />);
     
     const slider = await screen.findByRole('slider');
-    fireEvent.change(slider, { target: { value: '0.8' } });
+    await act(async () => {
+      fireEvent.change(slider, { target: { value: '0.8' } });
+    });
     
     expect(api.setVolume).toHaveBeenCalledWith('1', 0.8);
   });
@@ -99,10 +104,30 @@ describe('App Component', () => {
     await screen.findByText('D2');
     
     const stopAllBtn = await screen.findByText(/stop all/i);
-    fireEvent.click(stopAllBtn);
+    await act(async () => {
+      fireEvent.click(stopAllBtn);
+    });
     
     await waitFor(() => {
       expect(api.stopCast).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('sorts devices: active first, then alphabetical', async () => {
+    const devices = [
+      { id: '3', name: 'C', model: 'M', type: 'audio', volume: 0.5, is_active: false },
+      { id: '1', name: 'B', model: 'M', type: 'audio', volume: 0.5, is_active: true },
+      { id: '2', name: 'A', model: 'M', type: 'audio', volume: 0.5, is_active: false },
+    ];
+    (api.getDevices as any).mockResolvedValue(devices);
+    
+    render(<App />);
+    
+    await waitFor(() => {
+      const elements = screen.getAllByText(/^[A-C]$/);
+      expect(elements[0]).toHaveTextContent('B'); // Active
+      expect(elements[1]).toHaveTextContent('A'); // Inactive, sorted alpha
+      expect(elements[2]).toHaveTextContent('C'); // Inactive, sorted alpha
     });
   });
 });

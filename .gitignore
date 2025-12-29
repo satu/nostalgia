@@ -24,3 +24,6 @@ firebase-debug.log
 # Artifacts
 *.apk
 *.png
+
+.gemini/
+gha-creds-*.json

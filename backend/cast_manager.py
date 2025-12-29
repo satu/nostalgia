@@ -1,4 +1,5 @@
 import pychromecast
+from pychromecast.controllers.multizone import MultizoneController
 import threading
 import logging
 from typing import Dict, List, Optional
@@ -21,6 +22,13 @@ class CastManager:
         try:
             chromecast.wait()
             self.casts[str(chromecast.uuid)] = chromecast
+            
+            if chromecast.cast_type == 'group':
+                logger.info(f"Initializing MultizoneController for group {chromecast.name}")
+                mz = MultizoneController(chromecast.uuid)
+                chromecast.register_handler(mz)
+                chromecast.mz = mz # Attach to object
+                
         except Exception as e:
             logger.error(f"Failed to connect to {chromecast.name}: {e}")
 
@@ -35,24 +43,37 @@ class CastManager:
                 
                 if mc_status and mc_status.content_id:
                     # check if playing our stream and in active state
-                    # We accept IDLE/BUFFERING/PLAYING/PAUSED as long as the content matches
-                    # This prevents UI flickering during loading (IDLE state)
                     if mc_status.content_id.endswith("/stream.mp3"):
-                        is_active = True
+                        if mc_status.player_state == "IDLE":
+                            # If IDLE, check reason. If cancelled/finished/error, it's inactive.
+                            # If reason is None (loading) or INTERRUPTED, we consider it active (or transient)
+                            if mc_status.idle_reason in ["CANCELLED", "FINISHED", "ERROR"]:
+                                is_active = False
+                            else:
+                                is_active = True
+                        else:
+                            # PLAYING, BUFFERING, PAUSED
+                            is_active = True
                     
                     # Debug logging for active transitions or specific devices
                     if cc.name == "Sea room display" or is_active:
-                        logger.info(f"Device {cc.name}: State={mc_status.player_state}, Content={mc_status.content_id}, Active={is_active}")
+                        logger.info(f"Device {cc.name}: State={mc_status.player_state}, Content={mc_status.content_id}, IdleReason={mc_status.idle_reason}, Active={is_active}")
 
                 volume = cc.status.volume_level if cc.status else 0
                 
+                # Get group members if available
+                members = []
+                if hasattr(cc, 'mz'):
+                    members = cc.mz.members
+
                 device_list.append({
                     "id": str(cc.uuid),
                     "name": cc.name,
                     "model": cc.model_name,
                     "type": cc.cast_type,
                     "volume": volume,
-                    "is_active": is_active
+                    "is_active": is_active,
+                    "members": members
                 })
             except Exception as e:
                 logger.error(f"Error reading status for {cc.name}: {e}")
@@ -62,15 +83,17 @@ class CastManager:
     def get_device(self, device_id: str) -> Optional[pychromecast.Chromecast]:
         return self.casts.get(device_id)
 
-    def play_media(self, device_id: str, media_url: str, content_type: str = "audio/mpeg"):
+    def play_media(self, device_id: str, media_url: str, content_type: str = "audio/mpeg", title: str = None, thumb: str = None):
         cast = self.get_device(device_id)
         if cast:
             try:
-                cast.wait()
+                # Use a short timeout for connection check
+                cast.wait(timeout=2.0)
                 mc = cast.media_controller
-                mc.play_media(media_url, content_type)
-                mc.block_until_active()
-                logger.info(f"Started casting to {cast.name}")
+                mc.play_media(media_url, content_type, title=title, thumb=thumb)
+                # Do NOT block until active. Let the status polling handle the state update.
+                # mc.block_until_active() 
+                logger.info(f"Sent play command to {cast.name}")
                 return True
             except Exception as e:
                 logger.error(f"Failed to play media on {cast.name}: {e}")
@@ -80,9 +103,9 @@ class CastManager:
         cast = self.get_device(device_id)
         if cast:
             try:
-                cast.wait()
+                cast.wait(timeout=2.0)
                 cast.media_controller.stop()
-                logger.info(f"Stopped casting on {cast.name}")
+                logger.info(f"Sent stop command to {cast.name}")
                 return True
             except Exception as e:
                 logger.error(f"Failed to stop media on {cast.name}: {e}")
@@ -92,7 +115,7 @@ class CastManager:
         cast = self.get_device(device_id)
         if cast:
             try:
-                cast.wait()
+                cast.wait(timeout=1.0)
                 cast.set_volume(volume)
                 logger.info(f"Set volume on {cast.name} to {volume}")
                 return True
