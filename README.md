@@ -6,7 +6,7 @@ A digital companion for a vintage vinyl setup. Captures audio from a USB interfa
 
 ## System Architecture
 
-*   **Hardware:** Raspberry Pi 4 (Server), Nexus 7 Tablet (Client), Behringer UCA222 (ADC).
+*   **Hardware:** Raspberry Pi 4 (Server), Nexus 7 Tablet (Client), Sonos USB-C Line-in Adapter (ADC).
 *   **Backend:** Python (FastAPI, WebSockets, FFmpeg).
 *   **Frontend:** React (Vite, Tailwind CSS).
 *   **Deployment:** Nginx + Systemd on Raspberry Pi.

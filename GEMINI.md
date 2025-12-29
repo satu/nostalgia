@@ -1,7 +1,7 @@
 # Nostalgia Project Context
 
 ## Overview
-Nostalgia is a digital interface for a vinyl setup. It runs on a Raspberry Pi 4 (`nostalgia`) connected to a USB Audio Interface (Behringer U-Control UCA222).
+Nostalgia is a digital interface for a vinyl setup. It runs on a Raspberry Pi 4 (`nostalgia`) connected to a USB Audio Interface (Sonos USB-C Line-in Adapter).
 
 ### Components
 1.  **Frontend (React + Vite + Tailwind):**
