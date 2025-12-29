@@ -1,5 +1,7 @@
 # Nostalgia
 
+![Nostalgia Interface](docs/screenshot.png)
+
 A digital companion for a vintage vinyl setup. Captures audio from a USB interface on a Raspberry Pi, visualizes it on a tablet (VU Meter), and streams it to Google Cast devices in the house.
 
 ## System Architecture

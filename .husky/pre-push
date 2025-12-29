@@ -1,0 +1,30 @@
+#!/bin/sh
+echo "Running pre-push checks..."
+
+# Frontend
+echo "Running Frontend Tests..."
+cd frontend
+npm run test:coverage
+FRONTEND_EXIT=$?
+cd ..
+
+if [ $FRONTEND_EXIT -ne 0 ]; then
+  echo "Frontend tests failed!"
+  exit 1
+fi
+
+# Backend
+echo "Running Backend Tests..."
+cd backend
+../.venv/bin/coverage run -m pytest
+../.venv/bin/coverage report --fail-under=80
+BACKEND_EXIT=$?
+cd ..
+
+if [ $BACKEND_EXIT -ne 0 ]; then
+  echo "Backend tests failed!"
+  exit 1
+fi
+
+echo "All checks passed!"
+exit 0
