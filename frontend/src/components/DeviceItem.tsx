@@ -31,11 +31,11 @@ const DeviceItem: React.FC<DeviceItemProps> = ({ device, onToggle, onVolumeChang
     setPendingActive(checked);
     onToggle(device.id, checked);
 
-    // Safety timeout: if backend doesn't update in 5s, revert to prop
+    // Safety timeout: if backend doesn't update in 20s, revert to prop
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setPendingActive(null);
-    }, 5000);
+    }, 20000);
   };
 
   const displayActive = pendingActive !== null ? pendingActive : device.is_active;
