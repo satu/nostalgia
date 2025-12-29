@@ -76,7 +76,8 @@ async def get_devices():
 @app.post("/api/cast/start")
 async def start_cast(req: CastRequest):
     ip = get_local_ip()
-    url = f"http://{ip}:8000/stream.mp3"
+    # Use port 80 (Nginx) instead of 8000 (Uvicorn) for better compatibility/firewall traversal
+    url = f"http://{ip}/stream.mp3"
     success = cast_manager.play_media(req.device_id, url)
     if success:
         return {"status": "started", "device_id": req.device_id, "url": url}
