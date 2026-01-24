@@ -2,10 +2,54 @@ import asyncio
 import subprocess
 import shlex
 import logging
-from typing import Set
+import re
+from typing import Set, Optional
 from vu_meter import vu_meter
 
 logger = logging.getLogger(__name__)
+
+# Device name to search for in ALSA capture devices
+AUDIO_DEVICE_NAME = "Sonos"
+
+
+def detect_audio_device() -> Optional[str]:
+    """
+    Auto-detect the ALSA card ID for the audio input device.
+    Parses 'arecord -l' output to find a device matching AUDIO_DEVICE_NAME.
+    Returns the ALSA device string (e.g., 'plug:dsnoop:2') or None if not found.
+    """
+    try:
+        result = subprocess.run(
+            ["arecord", "-l"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        # Parse output like:
+        # card 2: Adapter [Sonos USB-C Line-in Adapter], device 0: USB Audio [USB Audio]
+        for line in result.stdout.splitlines():
+            if AUDIO_DEVICE_NAME.lower() in line.lower():
+                match = re.match(r"card (\d+):", line)
+                if match:
+                    card_id = match.group(1)
+                    device = f"plug:dsnoop:{card_id}"
+                    logger.info(f"Auto-detected audio device: {device} ({line.strip()})")
+                    return device
+
+        logger.warning(f"Could not find audio device matching '{AUDIO_DEVICE_NAME}' in arecord -l output")
+        return None
+
+    except subprocess.TimeoutExpired:
+        logger.error("Timeout running arecord -l")
+        return None
+    except FileNotFoundError:
+        logger.error("arecord command not found")
+        return None
+    except Exception as e:
+        logger.error(f"Error detecting audio device: {e}")
+        return None
+
 
 class AudioBroadcaster:
     def __init__(self):
@@ -15,16 +59,25 @@ class AudioBroadcaster:
         self.is_running = False
         self._processing_task = None
         self._broadcast_task = None
+        self._audio_device: Optional[str] = None
 
     async def start(self):
         if self.is_running:
             return
 
         logger.info("Starting AudioBroadcaster Pipeline...")
-        
+
+        # Auto-detect audio device if not already set
+        if not self._audio_device:
+            self._audio_device = detect_audio_device()
+
+        if not self._audio_device:
+            logger.error("No audio device detected, using fallback 'plug:dsnoop:2'")
+            self._audio_device = "plug:dsnoop:2"
+
         # 1. Capture Process: ALSA -> PCM (S16LE, 44.1kHz, Stereo)
         # Using ffmpeg for capture as it handles format conversion reliably
-        capture_cmd = "ffmpeg -f alsa -i plug:dsnoop:2 -ac 2 -ar 44100 -f s16le pipe:1"
+        capture_cmd = f"ffmpeg -f alsa -i {self._audio_device} -ac 2 -ar 44100 -f s16le pipe:1"
         
         # 2. Encode Process: PCM -> MP3
         # Read from pipe:0 (stdin)
@@ -54,26 +107,35 @@ class AudioBroadcaster:
 
     async def stop(self):
         self.is_running = False
-        
+
         if self.capture_process:
             self.capture_process.terminate()
             self.capture_process = None
-            
+
         if self.encode_process:
             self.encode_process.terminate()
             self.encode_process = None
-            
+
         if self._processing_task:
             self._processing_task.cancel()
             try: await self._processing_task
             except: pass
-            
+
         if self._broadcast_task:
             self._broadcast_task.cancel()
             try: await self._broadcast_task
             except: pass
-            
+
         logger.info("AudioBroadcaster stopped.")
+
+    async def restart(self):
+        """Restart the audio pipeline, re-detecting the audio device."""
+        logger.info("Restarting AudioBroadcaster Pipeline...")
+        await self.stop()
+        # Clear the cached device so it re-detects on start
+        self._audio_device = None
+        await self.start()
+        logger.info("AudioBroadcaster Pipeline restarted.")
 
     async def _pipeline_loop(self):
         """Reads PCM, updates VU Meter, writes to Encoder."""

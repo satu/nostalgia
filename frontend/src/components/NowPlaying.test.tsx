@@ -3,9 +3,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { NowPlaying } from './NowPlaying';
 
 // Mock the API
+const mockRestartAudio = vi.fn().mockResolvedValue({ status: 'restarted' });
 vi.mock('../api', () => ({
   getWebSocketUrl: vi.fn(() => 'ws://localhost/ws'),
-  api: {}
+  api: {
+    restartAudio: () => mockRestartAudio()
+  }
 }));
 
 describe('NowPlaying', () => {
@@ -86,11 +89,32 @@ describe('NowPlaying', () => {
     vi.useFakeTimers();
 
     render(<NowPlaying />);
-    
+
     expect(connectCount).toBe(1);
 
-    // Trigger close on the "instance" would be hard with this mock, 
+    // Trigger close on the "instance" would be hard with this mock,
     // but the code calls connect() again on close.
     // We can manually trigger it if we capture it.
+  });
+
+  it('calls restartAudio when reset button is clicked', async () => {
+    vi.useFakeTimers();
+    const MockSocket = vi.fn().mockImplementation(function(this: any) {
+      this.close = vi.fn();
+    });
+    vi.stubGlobal('WebSocket', MockSocket);
+
+    render(<NowPlaying />);
+
+    const resetButton = screen.getByTitle('Restart audio capture');
+    expect(resetButton).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(resetButton);
+    });
+
+    expect(mockRestartAudio).toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 });

@@ -102,6 +102,18 @@ async def set_volume(req: VolumeRequest):
         return {"status": "volume_set", "device_id": req.device_id, "volume": req.volume}
     raise HTTPException(status_code=404, detail="Device not found or failed to set volume")
 
+
+@app.post("/api/audio/restart")
+async def restart_audio():
+    """Restart the audio capture pipeline, re-detecting the audio device."""
+    try:
+        await broadcaster.restart()
+        return {"status": "restarted"}
+    except Exception as e:
+        logger.error(f"Failed to restart audio: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to restart audio: {e}")
+
+
 @app.get("/stream.mp3")
 async def stream_audio(request: Request):
     return StreamingResponse(broadcaster.stream_generator(request), media_type="audio/mpeg")

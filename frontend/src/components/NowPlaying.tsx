@@ -1,12 +1,26 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getWebSocketUrl } from '../api';
+import { getWebSocketUrl, api } from '../api';
 
 export const NowPlaying: React.FC = () => {
   const [levels, setLevels] = useState({ l: 0, r: 0, db: -96 });
   const [isSignalActive, setIsSignalActive] = useState(false);
   const [isPlayingLocal, setIsPlayingLocal] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ws = useRef<WebSocket | null>(null);
+
+  const handleRestartAudio = async () => {
+    if (isRestarting) return;
+    setIsRestarting(true);
+    try {
+      await api.restartAudio();
+    } catch (e) {
+      console.error('Failed to restart audio:', e);
+    } finally {
+      // Brief delay to show feedback
+      setTimeout(() => setIsRestarting(false), 1000);
+    }
+  };
 
   useEffect(() => {
     // Update signal active state based on levels with a 5s hold time to prevent flickering during quiet passages
@@ -95,6 +109,16 @@ export const NowPlaying: React.FC = () => {
             <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm font-medium">
               <span className="material-symbols-outlined text-[18px]">input</span>
               <span>Line-In (RCA)</span>
+              <button
+                onClick={handleRestartAudio}
+                disabled={isRestarting}
+                className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                title="Restart audio capture"
+              >
+                <span className={`material-symbols-outlined text-[16px] ${isRestarting ? 'animate-spin' : ''}`}>
+                  refresh
+                </span>
+              </button>
             </div>
             
             <div className="flex items-center gap-3">

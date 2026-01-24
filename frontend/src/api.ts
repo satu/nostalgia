@@ -50,5 +50,13 @@ export const api = {
     });
     if (!response.ok) throw new Error('Failed to set volume');
     return response.json();
+  },
+
+  restartAudio: async () => {
+    const response = await fetch(`${API_BASE_URL}/audio/restart`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to restart audio');
+    return response.json();
   }
 };
