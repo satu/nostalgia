@@ -12,8 +12,9 @@ const DeviceItem: React.FC<DeviceItemProps> = ({ device, allDevices, onToggle, o
   const isGroup = device.type === 'group';
   const icon = isGroup ? 'speaker_group' : (device.type === 'audio' ? 'speaker' : 'tv'); // basic mapping
 
-  const memberDevices = device.members 
-    ? device.members.map(mid => allDevices.find(d => d.id === mid)).filter(Boolean) as Device[]
+  const memberDevices = device.members
+    ? (device.members.map(mid => allDevices.find(d => d.id === mid)).filter(Boolean) as Device[])
+        .sort((a, b) => a.name.localeCompare(b.name))
     : [];
 
   // Optimistic UI state to prevent flickering

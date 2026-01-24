@@ -77,4 +77,32 @@ describe('DeviceItem', () => {
     rerender(<DeviceItem device={audioDevice} allDevices={[audioDevice]} onToggle={() => {}} onVolumeChange={() => {}} />);
     expect(screen.getByText('speaker')).toBeInTheDocument();
   });
+
+  it('renders group members in alphabetical order', () => {
+    const memberZ = { id: 'mz', name: 'Zulu Speaker', model: 'Nest Mini', type: 'audio' as const, volume: 0.3, is_active: false };
+    const memberA = { id: 'ma', name: 'Alpha Speaker', model: 'Nest Mini', type: 'audio' as const, volume: 0.5, is_active: false };
+    const memberM = { id: 'mm', name: 'Mike Speaker', model: 'Nest Mini', type: 'audio' as const, volume: 0.7, is_active: false };
+    const groupDevice = {
+        id: 'g1',
+        name: 'Living Room Group',
+        model: 'Group Model',
+        type: 'group' as const,
+        volume: 0.5,
+        is_active: true,
+        members: ['mz', 'ma', 'mm'] // Non-alphabetical order
+    };
+
+    render(
+        <DeviceItem
+            device={groupDevice}
+            allDevices={[groupDevice, memberZ, memberA, memberM]}
+            onToggle={() => {}}
+            onVolumeChange={() => {}}
+        />
+    );
+
+    // Get all member names in the order they appear
+    const memberNames = screen.getAllByText(/Speaker/).map(el => el.textContent);
+    expect(memberNames).toEqual(['Alpha Speaker', 'Mike Speaker', 'Zulu Speaker']);
+  });
 });
