@@ -24,7 +24,7 @@ class AudioBroadcaster:
         
         # 1. Capture Process: ALSA -> PCM (S16LE, 44.1kHz, Stereo)
         # Using ffmpeg for capture as it handles format conversion reliably
-        capture_cmd = "ffmpeg -f alsa -i plug:dsnoop:1 -ac 2 -ar 44100 -f s16le pipe:1"
+        capture_cmd = "ffmpeg -f alsa -i plug:dsnoop:2 -ac 2 -ar 44100 -f s16le pipe:1"
         
         # 2. Encode Process: PCM -> MP3
         # Read from pipe:0 (stdin)
