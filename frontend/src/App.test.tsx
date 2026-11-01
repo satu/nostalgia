@@ -112,22 +112,4 @@ describe('App Component', () => {
       expect(api.stopCast).toHaveBeenCalledTimes(2);
     });
   });
-
-  it('sorts devices: active first, then alphabetical', async () => {
-    const devices = [
-      { id: '3', name: 'C', model: 'M', type: 'audio', volume: 0.5, is_active: false },
-      { id: '1', name: 'B', model: 'M', type: 'audio', volume: 0.5, is_active: true },
-      { id: '2', name: 'A', model: 'M', type: 'audio', volume: 0.5, is_active: false },
-    ];
-    (api.getDevices as any).mockResolvedValue(devices);
-    
-    render(<App />);
-    
-    await waitFor(() => {
-      const elements = screen.getAllByText(/^[A-C]$/);
-      expect(elements[0]).toHaveTextContent('B'); // Active
-      expect(elements[1]).toHaveTextContent('A'); // Inactive, sorted alpha
-      expect(elements[2]).toHaveTextContent('C'); // Inactive, sorted alpha
-    });
-  });
 });

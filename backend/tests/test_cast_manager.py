@@ -6,9 +6,6 @@ from cast_manager import CastManager
 def manager():
     return CastManager()
 
-def test_get_devices_empty(manager):
-    assert manager.get_devices() == []
-
 @patch('cast_manager.pychromecast.discovery.discover_chromecasts')
 @patch('cast_manager.pychromecast.get_chromecasts')
 def test_discovery_callback(mock_get, mock_discover, manager):

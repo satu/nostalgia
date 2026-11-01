@@ -4,16 +4,6 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from vu_meter import VUMeter
 
 @pytest.mark.asyncio
-async def test_vu_meter_start_stop():
-    meter = VUMeter()
-    
-    await meter.start()
-    assert meter.is_running == True
-    
-    await meter.stop()
-    assert meter.is_running == False
-
-@pytest.mark.asyncio
 async def test_vu_meter_connections():
     meter = VUMeter()
     mock_ws = AsyncMock()

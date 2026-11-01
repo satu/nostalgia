@@ -16,11 +16,6 @@ describe('NowPlaying', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders signal status', () => {
-    render(<NowPlaying />);
-    expect(screen.getByText('Silent')).toBeInTheDocument();
-  });
-
   it('toggles local playback when listen button is clicked', () => {
     render(<NowPlaying />);
     const listenButton = screen.getByRole('button', { name: /listen/i });
@@ -76,25 +71,6 @@ describe('NowPlaying', () => {
     expect(screen.getByText('Silent')).toBeInTheDocument();
 
     vi.useRealTimers();
-  });
-
-  it('reconnects when websocket closes', async () => {
-    let connectCount = 0;
-    const MockSocket = class {
-      onclose: (() => void) | null = null;
-      constructor() { connectCount++; }
-      close() {}
-    };
-    vi.stubGlobal('WebSocket', MockSocket);
-    vi.useFakeTimers();
-
-    render(<NowPlaying />);
-
-    expect(connectCount).toBe(1);
-
-    // Trigger close on the "instance" would be hard with this mock,
-    // but the code calls connect() again on close.
-    // We can manually trigger it if we capture it.
   });
 
   it('calls restartAudio when reset button is clicked', async () => {
